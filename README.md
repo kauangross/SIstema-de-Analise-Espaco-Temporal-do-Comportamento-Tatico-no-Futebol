@@ -1,5 +1,5 @@
-# 🏟️ ButtonTactics Pro (BTP)
-### Sistema de Análise Espaço-Temporal do Comportamento Tático no Futebol
+
+# Sistema de Análise Espaço-Temporal do Comportamento Tático no Futebol
 
 > **Trabalho do Grau A (TGA) — Tópicos Especiais em Computação (Computação Aplicada ao Futebol)**
 > Universidade do Vale do Rio dos Sinos — Unisinos
