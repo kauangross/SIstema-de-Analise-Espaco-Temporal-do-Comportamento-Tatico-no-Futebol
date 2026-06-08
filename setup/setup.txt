@@ -1,0 +1,36 @@
+python -m venv .venv
+
+source .venv/Scripts/activate
+
+1. Criar o ambiente virtual
+---------------------------
+python -m venv .venv
+
+
+2. Ativar o ambiente virtual
+-----------------------------
+Windows:
+    source .venv/Scripts/activate
+
+O terminal deve mostrar (.venv) no início da linha.
+
+
+3. Instalar as dependências
+----------------------------
+Execute o script de instalação que está na pasta scripts/:
+
+    ./scripts/setup.sh
+
+
+4. Abrir o Jupyter no navegador
+---------------------------------
+    jupyter notebook
+
+O navegador vai abrir automaticamente.
+
+
+5. Rodar o notebook
+--------------------
+- Navegue até o arquivo notebook.ipynb
+- Execute as células em ordem
+- O campo interativo vai aparecer com slider, Play/Pause e controle de velocidade
