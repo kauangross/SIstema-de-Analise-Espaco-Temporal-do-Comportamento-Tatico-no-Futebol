@@ -1,0 +1,25 @@
+.venv/
+venv/
+env/
+
+
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+data/
+*.csv
+*.json
+*.xml
+*.parquet
+
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
