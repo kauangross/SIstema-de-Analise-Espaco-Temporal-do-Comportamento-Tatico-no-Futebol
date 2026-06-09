@@ -1,9 +1,9 @@
 """
-buttontactics/player.py
-...
+vis/player.py
+Interação e animação — slider, play/pause e controle de velocidade.
+Não tem lógica de desenho própria, delega tudo para layers.py.
 """
 
-import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.widgets as widgets
 from matplotlib.animation import FuncAnimation
@@ -12,13 +12,15 @@ from data_pipe.data_prep import get_frame, frame_ids
 from .colors import COLORS, PITCH_KWARGS, SPEEDS, BASE_INTERVAL
 from .layers import draw_field, draw_frame
 
+# Mantém a referência da animação viva — sem isso o garbage collector
+# do Python mata o FuncAnimation e o player trava.
 _anim_ref = None
 
 
 def interactive(df, show_skeleton=True, show_delaunay=True, show_hull=True):
 
-    ids = frame_ids(df)
-    n = len(ids)
+    ids   = frame_ids(df)
+    n     = len(ids)
     state = {"playing": False, "speed_idx": 2}  # começa em 1x
 
     # ── layout ──────────────────────────────────────────────────────────
@@ -89,9 +91,6 @@ def interactive(df, show_skeleton=True, show_delaunay=True, show_hull=True):
     render(0)
 
     # ── animação ────────────────────────────────────────────────────────
-    def get_interval():
-        return int(BASE_INTERVAL / SPEEDS[state["speed_idx"]])
-
     def animate(_):
         if not state["playing"]:
             return
@@ -100,15 +99,16 @@ def interactive(df, show_skeleton=True, show_delaunay=True, show_hull=True):
             new_val = 0   # loop
         slider.set_val(new_val)
 
-    def start_anim():
-        global _anim_ref
-        if _anim_ref is not None:
-            _anim_ref.event_source.stop()
-        _anim_ref = FuncAnimation(
-            fig, animate,
-            interval=get_interval(),
-            cache_frame_data=False,
-        )
+    # criado uma vez — state["playing"] controla se avança ou não
+    global _anim_ref
+    _anim_ref = FuncAnimation(
+        fig, animate,
+        interval=BASE_INTERVAL,
+        cache_frame_data=False,
+    )
+
+    def update_interval():
+        _anim_ref.event_source.interval = int(BASE_INTERVAL / SPEEDS[state["speed_idx"]])
 
     # ── callbacks ───────────────────────────────────────────────────────
     def on_slider(val):
@@ -116,29 +116,21 @@ def interactive(df, show_skeleton=True, show_delaunay=True, show_hull=True):
 
     def on_play(event):
         state["playing"] = not state["playing"]
-        if state["playing"]:
-            btn_play.label.set_text("⏸  Pause")
-            start_anim()
-        else:
-            btn_play.label.set_text("▶  Play")
-            if _anim_ref:
-                _anim_ref.event_source.stop()
+        btn_play.label.set_text("⏸  Pause" if state["playing"] else "▶  Play")
         fig.canvas.draw_idle()
 
     def on_slower(event):
         if state["speed_idx"] > 0:
             state["speed_idx"] -= 1
             speed_text.set_text(f"{SPEEDS[state['speed_idx']]}x")
-            if state["playing"]:
-                start_anim()
+            update_interval()
         fig.canvas.draw_idle()
 
     def on_faster(event):
         if state["speed_idx"] < len(SPEEDS) - 1:
             state["speed_idx"] += 1
             speed_text.set_text(f"{SPEEDS[state['speed_idx']]}x")
-            if state["playing"]:
-                start_anim()
+            update_interval()
         fig.canvas.draw_idle()
 
     slider.on_changed(on_slider)
