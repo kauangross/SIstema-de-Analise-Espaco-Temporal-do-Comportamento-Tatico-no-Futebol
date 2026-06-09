@@ -9,7 +9,9 @@ Saída   : DataFrame limpo com uma linha por jogador por frame
 import numpy as np
 import pandas as pd
 from kloppy import metrica
-from vis.colors import PITCH_LENGTH, PITCH_WIDTH
+
+PITCH_LENGTH = 105.0
+PITCH_WIDTH  = 68.0
 
 # ── Carregamento ──────────────────────────────────────────────────────────────
 
