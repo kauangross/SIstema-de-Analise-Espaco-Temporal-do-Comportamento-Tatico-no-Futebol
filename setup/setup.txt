@@ -1,7 +1,3 @@
-python -m venv .venv
-
-source .venv/Scripts/activate
-
 1. Criar o ambiente virtual
 ---------------------------
 python -m venv .venv
