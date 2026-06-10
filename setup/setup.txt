@@ -19,18 +19,9 @@ O terminal deve mostrar (.venv) no início da linha.
 ----------------------------
 Execute o script de instalação que está na pasta scripts/:
 
-    ./scripts/setup.sh
+    ./setup/setup.sh
 
 
-4. Abrir o Jupyter no navegador
----------------------------------
-    jupyter notebook
-
-O navegador vai abrir automaticamente.
-
-
-5. Rodar o notebook
+4. Rodar o app
 --------------------
-- Navegue até o arquivo notebook.ipynb
-- Execute as células em ordem
-- O campo interativo vai aparecer com slider, Play/Pause e controle de velocidade
+python -m streamlit run src/app.py
