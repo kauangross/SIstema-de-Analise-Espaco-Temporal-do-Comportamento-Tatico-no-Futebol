@@ -10,6 +10,9 @@ import numpy as np
 import pandas as pd
 from kloppy import metrica
 
+from src.data_pipe.filters import smooth_positions
+from src.core.metrics import add_speed
+
 PITCH_LENGTH = 105.0
 PITCH_WIDTH  = 68.0
 
@@ -67,45 +70,6 @@ def build_dataframe(dataset) -> pd.DataFrame:
             })
 
     return pd.DataFrame(rows)
-
-
-# ── Filtro de suavização ──────────────────────────────────────────────────────
-
-def smooth_positions(df: pd.DataFrame, window: int = 5) -> pd.DataFrame:
-    """
-    Aplica média móvel (rolling mean) em x e y por jogador para
-    reduzir ruído posicional e evitar falsos picos de velocidade.
-
-    window : tamanho da janela em frames (default = 5)
-    """
-    df = df.sort_values(["player_id", "frame_id"]).copy()
-
-    for col in ("x", "y"):
-        df[col] = (
-            df.groupby("player_id")[col]
-              .transform(lambda s: s.rolling(window, min_periods=1, center=True).mean())
-        )
-
-    return df
-
-
-# ── Cálculo de velocidade ─────────────────────────────────────────────────────
-
-def add_speed(df: pd.DataFrame, fps: float = 25.0) -> pd.DataFrame:
-    """
-    Estima a velocidade instantânea (m/s) de cada jogador entre frames consecutivos.
-    Valores extremos (> 12 m/s) são descartados como outliers de tracking.
-    """
-    df = df.sort_values(["player_id", "frame_id"]).copy()
-
-    dx = df.groupby("player_id")["x"].diff()
-    dy = df.groupby("player_id")["y"].diff()
-    speed = np.sqrt(dx**2 + dy**2) * fps
-
-    speed[speed > 12.0] = np.nan   # limite físico realista
-    df["speed"] = speed
-    return df
-
 
 # ── Pipeline principal ────────────────────────────────────────────────────────
 

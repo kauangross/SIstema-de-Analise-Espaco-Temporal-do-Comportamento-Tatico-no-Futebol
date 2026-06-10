@@ -1,3 +1,3 @@
 #!/bin/bash
-python install -r requirements.txt
+python -m pip install -r setup/requirements.txt
 echo "Dependências instaladas!"
