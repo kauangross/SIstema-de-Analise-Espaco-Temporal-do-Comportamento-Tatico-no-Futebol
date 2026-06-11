@@ -1,5 +1,5 @@
 import numpy as np
-
+import streamlit as st
 from src.config.settings import PITCH_LENGTH, PITCH_WIDTH
 
 
@@ -46,6 +46,7 @@ def _split_three_lines(depths: np.ndarray) -> tuple[int, int, int]:
     return best
 
 
+@st.cache_data
 def _lines_data(pts):
     """
     Infer and draw tactical formation lines from team positions.

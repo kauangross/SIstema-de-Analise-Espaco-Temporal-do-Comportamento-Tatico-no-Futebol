@@ -1,5 +1,7 @@
 import numpy as np
-
+    
+import streamlit as st
+@st.cache_data
 def _skeleton_data(pts):
     x_coords, y_coords = [], []
     if len(pts) < 2:

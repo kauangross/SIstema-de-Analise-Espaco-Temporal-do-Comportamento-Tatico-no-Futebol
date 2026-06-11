@@ -1,5 +1,6 @@
 from scipy.spatial import Delaunay
-
+import streamlit as st
+@st.cache_data
 def _delaunay_data(pts):
     x_coords, y_coords = [], []
     if len(pts) < 3:

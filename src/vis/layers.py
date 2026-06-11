@@ -9,6 +9,7 @@ import plotly.graph_objects as go
 from src.data_pipe.data_prep import get_frame
 
 from vis.lines_layer import _lines_data
+from vis.stretch_layer import _stretch_index
 from vis.skeleton_layer import _skeleton_data
 from vis.delaunay_layer import _delaunay_data
 from vis.hull_layer import _hull_data
@@ -17,11 +18,12 @@ from vis.field_layer import field_shapes
 from src.config.settings import COLORS, PITCH_LENGTH, PITCH_WIDTH
 import streamlit as st
 # ── Camadas de um frame ────────────────────────────────────────────────────────
-#@st.cache_data()
+@st.cache_data
 def _frame_traces(frame_df, active_layers):
     """Retorna lista de dicts de dados para um go.Frame."""
     data = []
     formations = {}
+    stretches = {}
 
     for team in ["home", "away"]:
         tdf = frame_df[frame_df["team"] == team].dropna(subset=["x","y"])
@@ -45,17 +47,25 @@ def _frame_traces(frame_df, active_layers):
         # tactical lines
         lx, ly, ltx, lty, formation = _lines_data(pts) if active_layers.get("lines", False) else ([], [], None, None, "")
         data.append(dict(x=lx, y=ly))
-        data.append(dict(x=[ltx] if ltx is not None else [],
-                 y=[lty] if lty is not None else [],
-                 text=[formation] if formation else []))
+        data.append(dict(x=[], y=[], text=[]))
         formations[team] = formation
+
+        # defensive stretch index
+        stretch = _stretch_index(pts) if active_layers.get("stretch", False) else None
+        stretches[team] = stretch
 
         # jogadores
         labels = [r["player_id"].split("_")[-1] for _, r in tdf.iterrows()]
         speeds = tdf["speed"].fillna(0).round(1).tolist() if "speed" in tdf.columns else [0]*len(tdf)
         hover  = [f"#{label} | {speed} m/s" for label, speed in zip(labels, speeds)]
+        legend_bits = [team.capitalize()]
+        if formations.get(team):
+            legend_bits.append(f"Form {formations[team]}")
+        if stretches.get(team) is not None:
+            legend_bits.append(f"Stretch {stretches[team]:.2f}")
         data.append(dict(x=tdf["x"].tolist(), y=tdf["y"].tolist(),
-                         text=labels, hovertext=hover))
+                         text=labels, hovertext=hover,
+                         name=" | ".join(legend_bits)))
 
     # bola
     row = frame_df.iloc[0]
@@ -63,7 +73,7 @@ def _frame_traces(frame_df, active_layers):
     by = float(row["ball_y"]) if not np.isnan(row["ball_y"]) else None
     data.append(dict(x=[bx], y=[by]))
 
-    return data, formations
+    return data
 
 
 # ── Figura base (traces vazios com estilo fixo) ───────────────────────────────
@@ -120,18 +130,16 @@ def build_animation(df, ids, active_layers, fps=25.0, speed=1.0) -> go.Figure:
             continue
 
         ts = frame_df.iloc[0]["timestamp"]
-        data, formations = _frame_traces(frame_df, active_layers)
-        title_bits = [f"Frame {fid}  |  {ts:.1f}s"]
-        for team in ["home", "away"]:
-            if formations.get(team):
-                title_bits.append(f"{team.capitalize()} {formations[team]}")
+        data = _frame_traces(frame_df, active_layers)
 
         frames.append(go.Frame(
             data=[go.Scatter(x=d["x"], y=d["y"],
-                             text=d.get("text"), hovertext=d.get("hovertext"))
+                             text=d.get("text"), hovertext=d.get("hovertext"),
+                             textposition=d.get("textposition"),
+                             name=d.get("name"))
                   for d in data],
             name=str(i),
-            layout=go.Layout(title_text="  |  ".join(title_bits)),
+            layout=go.Layout(title_text=f"Frame {fid}  |  {ts:.1f}s"),
         ))
 
         slider_steps.append(dict(
@@ -152,6 +160,10 @@ def build_animation(df, ids, active_layers, fps=25.0, speed=1.0) -> go.Figure:
                 fig.data[i].text = trace_data.text
             if hasattr(trace_data, "hovertext") and trace_data.hovertext:
                 fig.data[i].hovertext = trace_data.hovertext
+            if hasattr(trace_data, "textposition") and trace_data.textposition:
+                fig.data[i].textposition = trace_data.textposition
+            if hasattr(trace_data, "name") and trace_data.name:
+                fig.data[i].name = trace_data.name
 
     fig.update_layout(
         title=dict(text="Frame —", font=dict(color="white", size=13), x=0.5),
@@ -201,7 +213,7 @@ def build_animation(df, ids, active_layers, fps=25.0, speed=1.0) -> go.Figure:
 # ── Frame único (snapshot) ────────────────────────────────────────────────────
 
 def build_frame_figure(frame_df, active_layers) -> go.Figure:
-    data, formations = _frame_traces(frame_df, active_layers)
+    data = _frame_traces(frame_df, active_layers)
     traces = _base_traces()
     for i, d in enumerate(data):
         traces[i].x = d["x"]
@@ -210,17 +222,17 @@ def build_frame_figure(frame_df, active_layers) -> go.Figure:
             traces[i].text = d["text"]
         if d.get("hovertext"):
             traces[i].hovertext = d["hovertext"]
+        if d.get("textposition"):
+            traces[i].textposition = d["textposition"]
+        if d.get("name"):
+            traces[i].name = d["name"]
 
     fid = frame_df.iloc[0]["frame_id"]
     ts  = frame_df.iloc[0]["timestamp"]
-    title_bits = [f"Frame {fid}  |  {ts:.1f}s"]
-    for team in ["home", "away"]:
-        if formations.get(team):
-            title_bits.append(f"{team.capitalize()} {formations[team]}")
 
     fig = go.Figure(data=traces)
     fig.update_layout(
-        title=dict(text="  |  ".join(title_bits),
+        title=dict(text=f"Frame {fid}  |  {ts:.1f}s",
                    font=dict(color="white", size=13), x=0.5),
         paper_bgcolor="#111111",
         plot_bgcolor="#2d5a27",

@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.spatial import ConvexHull
-
+import streamlit as st
+@st.cache_data
 def _hull_data(pts):
     x_line, y_line, x_fill, y_fill = [], [], [], []
     if len(pts) < 3:

@@ -32,6 +32,7 @@ LAYERS = {
     "delaunay": "Shape Graph (Delaunay)",
     "hull": "Polígono convexo",
     "lines": "Linhas de formação",
+    "stretch": "Stretch defensivo",
 }
 
 # ── Cabeçalho ─────────────────────────────────────────────────────────────────
