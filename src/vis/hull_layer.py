@@ -1,7 +1,7 @@
 import numpy as np
-from scipy.spatial import ConvexHull
+from scipy.spatial import ConvexHull # external
 
-def _hull_data(pts):
+def data(pts):
     x_line, y_line, x_fill, y_fill = [], [], [], []
     if len(pts) < 3:
         return x_line, y_line, x_fill, y_fill

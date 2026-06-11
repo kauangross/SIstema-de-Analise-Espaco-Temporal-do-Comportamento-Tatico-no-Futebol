@@ -8,10 +8,12 @@ import plotly.graph_objects as go
 
 from src.data_pipe.data_prep import get_frame
 
-from vis.skeleton_layer import _skeleton_data
-from vis.delaunay_layer import _delaunay_data
-from vis.hull_layer import _hull_data
-from vis.field_layer import field_shapes
+import vis.skeleton_layer as skeleton_layer
+import vis.delaunay_layer as delaunay_layer
+import vis.hull_layer as hull_layer
+import vis.field_layer as field_layer
+
+from src.vis.registry import LAYERS
 
 from src.config.settings import COLORS, PITCH_LENGTH, PITCH_WIDTH
 
@@ -26,15 +28,15 @@ def _frame_traces(frame_df, show_skeleton, show_delaunay, show_hull):
         pts = tdf[["x","y"]].values
 
         # skeleton
-        sx, sy = _skeleton_data(pts) if show_skeleton else ([], [])
+        sx, sy = skeleton_layer.data(pts) if show_skeleton else ([], [])
         data.append(dict(x=sx, y=sy))
 
         # delaunay
-        dx, dy = _delaunay_data(pts) if show_delaunay else ([], [])
+        dx, dy = delaunay_layer.data(pts) if show_delaunay else ([], [])
         data.append(dict(x=dx, y=dy))
 
         # hull line
-        hlx, hly, hfx, hfy = _hull_data(pts) if show_hull else ([], [], [], [])
+        hlx, hly, hfx, hfy = hull_layer.data(pts) if show_hull else ([], [], [], [])
         data.append(dict(x=hlx, y=hly))
 
         # hull fill
@@ -58,32 +60,46 @@ def _frame_traces(frame_df, show_skeleton, show_delaunay, show_hull):
 
 # ── Figura base (traces vazios com estilo fixo) ───────────────────────────────
 
+# def _base_traces():
+#     traces = []
+#     for team in ["home","away"]:
+#         traces.append(go.Scatter(x=[], y=[], mode="lines",
+#             line=dict(color=COLORS["skeleton"], width=1), opacity=0.5,
+#             showlegend=False, hoverinfo="skip", name=f"skel_{team}"))
+#         traces.append(go.Scatter(x=[], y=[], mode="lines",
+#             line=dict(color=COLORS["delaunay"], width=1), opacity=0.45,
+#             showlegend=False, hoverinfo="skip", name=f"del_{team}"))
+#         traces.append(go.Scatter(x=[], y=[], mode="lines",
+#             line=dict(color=COLORS[team], width=1.5, dash="dash"), opacity=0.4,
+#             showlegend=False, hoverinfo="skip", name=f"hull_{team}"))
+#         traces.append(go.Scatter(x=[], y=[], fill="toself",
+#             fillcolor=COLORS[team], opacity=0.07, mode="none",
+#             showlegend=False, hoverinfo="skip", name=f"hullf_{team}"))
+        
+#         traces.append(go.Scatter(x=[], y=[], mode="markers+text",
+#             marker=dict(size=18, color=COLORS[team], line=dict(color="white", width=1.5)),
+#             textposition="middle center",
+#             textfont=dict(color="white", size=9, family="Arial Black"),
+#             hoverinfo="text", showlegend=True, name=team.capitalize()))
+#     traces.append(go.Scatter(x=[], y=[], mode="markers",
+#         marker=dict(size=14, color=COLORS["ball"],
+#                     line=dict(color="black", width=1.2)),
+#         showlegend=False, hoverinfo="skip", name="ball"))
+#     return traces
+
+
 def _base_traces():
     traces = []
-    for team, color in [("home", COLORS["home"]), ("away", COLORS["away"])]:
-        traces.append(go.Scatter(x=[], y=[], mode="lines",
-            line=dict(color=COLORS["skeleton"], width=1), opacity=0.5,
-            showlegend=False, hoverinfo="skip", name=f"skel_{team}"))
-        traces.append(go.Scatter(x=[], y=[], mode="lines",
-            line=dict(color=COLORS["delaunay"], width=1), opacity=0.45,
-            showlegend=False, hoverinfo="skip", name=f"del_{team}"))
-        traces.append(go.Scatter(x=[], y=[], mode="lines",
-            line=dict(color=color, width=1.5, dash="dash"), opacity=0.4,
-            showlegend=False, hoverinfo="skip", name=f"hull_{team}"))
-        traces.append(go.Scatter(x=[], y=[], fill="toself",
-            fillcolor=color, opacity=0.07, mode="none",
-            showlegend=False, hoverinfo="skip", name=f"hullf_{team}"))
-        traces.append(go.Scatter(x=[], y=[], mode="markers+text",
-            marker=dict(size=18, color=color, line=dict(color="white", width=1.5)),
-            textposition="middle center",
-            textfont=dict(color="white", size=9, family="Arial Black"),
-            hoverinfo="text", showlegend=True, name=team.capitalize()))
-    traces.append(go.Scatter(x=[], y=[], mode="markers",
-        marker=dict(size=14, color=COLORS["ball"],
-                    line=dict(color="black", width=1.2)),
-        showlegend=False, hoverinfo="skip", name="ball"))
+    for layer in LAYERS:
+        for trace in layer.traces:
+            if trace.per_team:
+                for team in ["home", "away"]:
+                    style = trace.style_for_team(team) if callable(trace.style_for_team) else trace.style
+                    traces.append(go.Scatter(x=[], y=[], name=f"{trace.id}_{team}", **style))
+            else:
+                style = trace.style_for_team(None) if callable(trace.style_for_team) else trace.style
+                traces.append(go.Scatter(x=[], y=[], name=trace.id, **style))
     return traces
-
 
 # ── Animação completa ─────────────────────────────────────────────────────────
 
@@ -138,7 +154,7 @@ def build_animation(df, ids, show_skeleton=True, show_delaunay=True,
         title=dict(text="Frame —", font=dict(color="white", size=13), x=0.5),
         paper_bgcolor="#111111",
         plot_bgcolor="#2d5a27",
-        shapes=field_shapes(),
+        shapes=field_layer.field_shapes(),
         xaxis=dict(range=[-3, PITCH_LENGTH+3], showgrid=False,
                    zeroline=False, showticklabels=False),
         yaxis=dict(range=[-3, PITCH_WIDTH+3], showgrid=False,
@@ -202,7 +218,7 @@ def build_frame_figure(frame_df, show_skeleton=True,
                    font=dict(color="white", size=13), x=0.5),
         paper_bgcolor="#111111",
         plot_bgcolor="#2d5a27",
-        shapes=field_shapes(),
+        shapes=field_layer.field_shapes(),
         xaxis=dict(range=[-3, PITCH_LENGTH+3], showgrid=False,
                    zeroline=False, showticklabels=False),
         yaxis=dict(range=[-3, PITCH_WIDTH+3], showgrid=False,

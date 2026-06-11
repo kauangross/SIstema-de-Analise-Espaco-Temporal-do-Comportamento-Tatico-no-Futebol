@@ -1,6 +1,6 @@
 from scipy.spatial import Delaunay
 
-def _delaunay_data(pts):
+def data(pts):
     x_coords, y_coords = [], []
     if len(pts) < 3:
         return x_coords, y_coords

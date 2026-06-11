@@ -9,6 +9,7 @@ Rodar:
 import streamlit as st
 from src.data_pipe.data_prep import prepare, frame_ids
 from vis.layers import build_animation
+from vis.registry import LAYERS 
 
 # ── Configuração da página ────────────────────────────────────────────────────
 
@@ -34,6 +35,7 @@ st.caption("Análise Espaço-Temporal do Comportamento Tático no Futebol")
 
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 
+
 with st.sidebar:
     st.header("Configurações")
 
@@ -43,9 +45,14 @@ with st.sidebar:
 
     st.divider()
     st.subheader("Camadas")
-    show_skeleton = st.checkbox("Esqueleto tático",    value=True)
-    show_delaunay = st.checkbox("Shape Graph (Delaunay)", value=True)
-    show_hull     = st.checkbox("Polígono convexo",    value=True)
+
+    # inicializa o estado das camadas como True (visíveis)
+    active_layers = {layer.id: st.checkbox(layer.label, value=True) for layer in LAYERS}
+    
+    # legacy:
+    # show_skeleton = st.checkbox("Esqueleto tático",    value=True)
+    # show_delaunay = st.checkbox("Shape Graph (Delaunay)", value=True)
+    # show_hull     = st.checkbox("Polígono convexo",    value=True)
 
     st.divider()
     st.subheader("Velocidade")
@@ -57,7 +64,7 @@ with st.sidebar:
     )
 
     st.divider()
-    load = st.button("▶  Carregar e gerar animação", use_container_width=True)
+    has_to_load = st.button("▶  Carregar e gerar animação", use_container_width=True)
 
 # ── Carregamento ──────────────────────────────────────────────────────────────
 
@@ -66,10 +73,10 @@ def load_data(match_id, limit):
     lim = limit if limit > 0 else None
     return prepare(match_id=match_id, limit=lim)
 
-if "df" not in st.session_state or load:
-    with st.spinner("Carregando dados…"):
-        st.session_state.df  = load_data(match_id, limit)
-        st.session_state.ids = frame_ids(st.session_state.df)
+if "df" not in st.session_state or has_to_load:
+    # with st.spinner("Carregando dados…"):
+    st.session_state.df  = load_data(match_id, limit)
+    st.session_state.ids = frame_ids(st.session_state.df)
 
 df  = st.session_state.df
 ids = st.session_state.ids
@@ -81,19 +88,18 @@ if len(ids) == 0:
 # ── Animação ──────────────────────────────────────────────────────────────────
 
 @st.cache_data(show_spinner="Gerando animação…")
-def get_animation(match_id, limit, show_skeleton, show_delaunay, show_hull, speed):
+def get_animation(match_id, limit,active_layers, speed):
     """Cache da figura — só regera se algum parâmetro mudar."""
     d   = load_data(match_id, limit)
     ids = frame_ids(d)
     return build_animation(d, ids,
-                           show_skeleton=show_skeleton,
-                           show_delaunay=show_delaunay,
-                           show_hull=show_hull,
+                           show_skeleton=active_layers["skeleton"],
+                           show_delaunay=active_layers["delaunay"],
+                           show_hull=active_layers["hull"],
                            speed=speed)
 
-with st.spinner("Gerando animação…"):
-    fig = get_animation(match_id, limit, show_skeleton,
-                        show_delaunay, show_hull, speed)
+# with st.spinner("Gerando animação…"):
+fig = get_animation(match_id, limit, active_layers, speed)
 
 st.plotly_chart(fig, use_container_width=True,
                 config={"displayModeBar": False})
