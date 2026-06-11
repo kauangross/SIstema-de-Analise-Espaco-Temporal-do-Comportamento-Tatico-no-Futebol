@@ -31,6 +31,7 @@ LAYERS = {
     "skeleton": "Esqueleto tático",
     "delaunay": "Shape Graph (Delaunay)",
     "hull": "Polígono convexo",
+    "lines": "Linhas de formação",
 }
 
 # ── Cabeçalho ─────────────────────────────────────────────────────────────────
