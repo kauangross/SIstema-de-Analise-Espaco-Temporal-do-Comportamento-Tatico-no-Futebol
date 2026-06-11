@@ -27,6 +27,12 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+LAYERS = {
+    "skeleton": "Esqueleto tático",
+    "delaunay": "Shape Graph (Delaunay)",
+    "hull": "Polígono convexo",
+}
+
 # ── Cabeçalho ─────────────────────────────────────────────────────────────────
 
 st.title("⚽ ButtonTactics")
@@ -43,9 +49,8 @@ with st.sidebar:
 
     st.divider()
     st.subheader("Camadas")
-    show_skeleton = st.checkbox("Esqueleto tático",    value=True)
-    show_delaunay = st.checkbox("Shape Graph (Delaunay)", value=True)
-    show_hull     = st.checkbox("Polígono convexo",    value=True)
+
+    active_layers = {k: st.checkbox(LAYERS[k], value=True) for k in LAYERS.keys()}
 
     st.divider()
     st.subheader("Velocidade")
@@ -81,19 +86,14 @@ if len(ids) == 0:
 # ── Animação ──────────────────────────────────────────────────────────────────
 
 @st.cache_data(show_spinner="Gerando animação…")
-def get_animation(match_id, limit, show_skeleton, show_delaunay, show_hull, speed):
+def get_animation(match_id, limit, active_layers, speed):
     """Cache da figura — só regera se algum parâmetro mudar."""
     d   = load_data(match_id, limit)
     ids = frame_ids(d)
-    return build_animation(d, ids,
-                           show_skeleton=show_skeleton,
-                           show_delaunay=show_delaunay,
-                           show_hull=show_hull,
-                           speed=speed)
+    return build_animation(d, ids,active_layers,speed=speed)
 
 # with st.spinner("Gerando animação…"):
-fig = get_animation(match_id, limit, show_skeleton,
-                    show_delaunay, show_hull, speed)
+fig = get_animation(match_id, limit, active_layers, speed)
 
 st.plotly_chart(fig, use_container_width=True,
                 config={"displayModeBar": False})

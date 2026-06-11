@@ -17,24 +17,24 @@ from src.config.settings import COLORS, PITCH_LENGTH, PITCH_WIDTH
 
 # ── Camadas de um frame ────────────────────────────────────────────────────────
 
-def _frame_traces(frame_df, show_skeleton, show_delaunay, show_hull):
+def _frame_traces(frame_df, active_layers):
     """Retorna lista de dicts de dados para um go.Frame."""
     data = []
 
-    for team, color in [("home", COLORS["home"]), ("away", COLORS["away"])]:
+    for team in ["home", "away"]:
         tdf = frame_df[frame_df["team"] == team].dropna(subset=["x","y"])
         pts = tdf[["x","y"]].values
 
         # skeleton
-        sx, sy = _skeleton_data(pts) if show_skeleton else ([], [])
+        sx, sy = _skeleton_data(pts) if active_layers["skeleton"] else ([], [])
         data.append(dict(x=sx, y=sy))
 
         # delaunay
-        dx, dy = _delaunay_data(pts) if show_delaunay else ([], [])
+        dx, dy = _delaunay_data(pts) if active_layers["delaunay"] else ([], [])
         data.append(dict(x=dx, y=dy))
 
         # hull line
-        hlx, hly, hfx, hfy = _hull_data(pts) if show_hull else ([], [], [], [])
+        hlx, hly, hfx, hfy = _hull_data(pts) if active_layers["hull"] else ([], [], [], [])
         data.append(dict(x=hlx, y=hly))
 
         # hull fill
@@ -60,7 +60,7 @@ def _frame_traces(frame_df, show_skeleton, show_delaunay, show_hull):
 
 def _base_traces():
     traces = []
-    for team, color in [("home", COLORS["home"]), ("away", COLORS["away"])]:
+    for team in ["home", "away"]:
         traces.append(go.Scatter(x=[], y=[], mode="lines",
             line=dict(color=COLORS["skeleton"], width=1), opacity=0.5,
             showlegend=False, hoverinfo="skip", name=f"skel_{team}"))
@@ -68,13 +68,13 @@ def _base_traces():
             line=dict(color=COLORS["delaunay"], width=1), opacity=0.45,
             showlegend=False, hoverinfo="skip", name=f"del_{team}"))
         traces.append(go.Scatter(x=[], y=[], mode="lines",
-            line=dict(color=color, width=1.5, dash="dash"), opacity=0.4,
+            line=dict(color=COLORS[team], width=1.5, dash="dash"), opacity=0.4,
             showlegend=False, hoverinfo="skip", name=f"hull_{team}"))
         traces.append(go.Scatter(x=[], y=[], fill="toself",
-            fillcolor=color, opacity=0.07, mode="none",
+            fillcolor=COLORS[team], opacity=0.07, mode="none",
             showlegend=False, hoverinfo="skip", name=f"hullf_{team}"))
         traces.append(go.Scatter(x=[], y=[], mode="markers+text",
-            marker=dict(size=18, color=color, line=dict(color="white", width=1.5)),
+            marker=dict(size=18, color=COLORS[team], line=dict(color="white", width=1.5)),
             textposition="middle center",
             textfont=dict(color="white", size=9, family="Arial Black"),
             hoverinfo="text", showlegend=True, name=team.capitalize()))
@@ -87,8 +87,7 @@ def _base_traces():
 
 # ── Animação completa ─────────────────────────────────────────────────────────
 
-def build_animation(df, ids, show_skeleton=True, show_delaunay=True,
-                    show_hull=True, fps=25.0, speed=1.0) -> go.Figure:
+def build_animation(df, ids, active_layers, fps=25.0, speed=1.0) -> go.Figure:
     """
     Monta figura Plotly com animação nativa (go.Frame).
     Sem flash, sem rerun do Streamlit.
@@ -105,7 +104,7 @@ def build_animation(df, ids, show_skeleton=True, show_delaunay=True,
             continue
 
         ts = frame_df.iloc[0]["timestamp"]
-        data = _frame_traces(frame_df, show_skeleton, show_delaunay, show_hull)
+        data = _frame_traces(frame_df, active_layers)
 
         frames.append(go.Frame(
             data=[go.Scatter(x=d["x"], y=d["y"],
@@ -181,9 +180,8 @@ def build_animation(df, ids, show_skeleton=True, show_delaunay=True,
 
 # ── Frame único (snapshot) ────────────────────────────────────────────────────
 
-def build_frame_figure(frame_df, show_skeleton=True,
-                       show_delaunay=True, show_hull=True) -> go.Figure:
-    data   = _frame_traces(frame_df, show_skeleton, show_delaunay, show_hull)
+def build_frame_figure(frame_df, active_layers) -> go.Figure:
+    data   = _frame_traces(frame_df, active_layers)
     traces = _base_traces()
     for i, d in enumerate(data):
         traces[i].x = d["x"]
