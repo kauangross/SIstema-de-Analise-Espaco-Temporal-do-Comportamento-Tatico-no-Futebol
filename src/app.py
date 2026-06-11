@@ -67,9 +67,9 @@ def load_data(match_id, limit):
     return prepare(match_id=match_id, limit=lim)
 
 if "df" not in st.session_state or load:
-    with st.spinner("Carregando dados…"):
-        st.session_state.df  = load_data(match_id, limit)
-        st.session_state.ids = frame_ids(st.session_state.df)
+    #with st.spinner("Carregando dados…"):
+    st.session_state.df  = load_data(match_id, limit)
+    st.session_state.ids = frame_ids(st.session_state.df)
 
 df  = st.session_state.df
 ids = st.session_state.ids
@@ -91,9 +91,9 @@ def get_animation(match_id, limit, show_skeleton, show_delaunay, show_hull, spee
                            show_hull=show_hull,
                            speed=speed)
 
-with st.spinner("Gerando animação…"):
-    fig = get_animation(match_id, limit, show_skeleton,
-                        show_delaunay, show_hull, speed)
+# with st.spinner("Gerando animação…"):
+fig = get_animation(match_id, limit, show_skeleton,
+                    show_delaunay, show_hull, speed)
 
 st.plotly_chart(fig, use_container_width=True,
                 config={"displayModeBar": False})
