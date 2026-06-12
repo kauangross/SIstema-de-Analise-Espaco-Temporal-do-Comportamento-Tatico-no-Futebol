@@ -9,7 +9,7 @@ import plotly.graph_objects as go
 from src.data_pipe.data_prep import get_frame
 
 from vis.lines_layer import _lines_data
-from vis.stretch_layer import _stretch_index, _defensive_line_data
+from vis.stretch_layer import _stretch_index, _defensive_line_data, DEFENSIVE_LINE_THRESHOLD
 from vis.skeleton_layer import _skeleton_data
 from vis.delaunay_layer import _delaunay_data
 from vis.hull_layer import _hull_data
@@ -69,9 +69,17 @@ def _frame_traces(frame_df, active_layers):
                          text=labels, hovertext=hover,
                          name=" | ".join(legend_bits)))
 
-        # linha da defesa
+       # linha da defesa
         dlx, dly = _defensive_line_data(pts) if active_layers.get("stretch", False) else ([], [])
-        data.append(dict(x=dlx, y=dly))
+        stretch_val = stretches.get(team)
+        is_critical = stretch_val is not None and stretch_val > DEFENSIVE_LINE_THRESHOLD
+
+        if is_critical:
+            data.append(dict(x=[], y=[]))
+            data.append(dict(x=dlx, y=dly))
+        else:
+            data.append(dict(x=dlx, y=dly))
+            data.append(dict(x=[], y=[]))
 
     # bola
     row = frame_df.iloc[0]
@@ -111,11 +119,16 @@ def _base_traces():
             textposition="middle center",
             textfont=dict(color="white", size=9, family="Arial Black"),
             hoverinfo="text", showlegend=True, name=team.capitalize()))
-        # linha da defesa
+        # linha da defesa normal
         traces.append(go.Scatter(x=[], y=[], mode="lines",
             line=dict(color=COLORS["skeleton"], width=2),
             opacity=0.5, showlegend=False, hoverinfo="skip",
             name=f"defline_{team}"))
+        # linha defensiva crítica
+        traces.append(go.Scatter(x=[], y=[], mode="lines",
+            line=dict(color="#FF3333", width=2),
+            opacity=0.8, showlegend=False, hoverinfo="skip",
+            name=f"defline_critical_{team}"))
 
     traces.append(go.Scatter(x=[], y=[], mode="markers",
         marker=dict(size=14, color=COLORS["ball"],
