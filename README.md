@@ -1,4 +1,3 @@
-
 # Sistema de Análise Espaço-Temporal do Comportamento Tático no Futebol
 
 > **Trabalho do Grau A (TGA) — Tópicos Especiais em Computação (Computação Aplicada ao Futebol)**
@@ -31,26 +30,9 @@ Utiliza a **Triangulação de Delaunay** para mapear conexões táticas instant�
 - A ruptura repentina de arestas indica mudança de estrutura em tempo real
 
 ### 📏 Índice de Estiramento (Stretch Index)
-Mede a **espessura e compactação da última linha defensiva**, avaliando simultaneamente a área do polígono convexo dos 4 defensores e a distância dos atacantes adversários mais próximos.
-- Um aumento no índice indica perda de compactação no setor defensivo primário
-
-### ⏱️ Tempo de Recomposição (Time-to-Shape)
-Calcula o tempo exato entre o evento de **"Perda de Posse"** e o momento em que a equipe recupera sua geometria defensiva ideal.
-- Identifica se o time é vulnerável a contra-ataques por demora na transição defensiva
-
-### 📐 Deformação Geométrica (In vs. Out of Possession)
-Analisa como a forma do time se altera conforme a posse de bola, medindo **Amplitude (Largura)** e **Profundidade (Comprimento)** médias.
-- Times de alta performance expandem sua área em até 30% ao ganhar a posse
-- Ausência dessa expansão indica falha de construção tática
-
-### 🔍 Linhas Quebradas (Defensive Gaps)
-Identifica buracos na estrutura tática calculando distâncias entre defensores. Se a distância entre Lateral e Zagueiro exceder um limite pré-definido (ex: 15m), o sistema emite um **"Gatilho de Risco"**.
-
-### 😓 Deriva Tática (Drift)
-Monitora a **altura média da linha defensiva** em blocos de 15 minutos. Uma queda progressiva sem substituições ou mudanças de formação configura deriva tática por exaustão física.
-
-### 💪 Eficiência Defensiva por Compactação
-Correlaciona a localização de cada bola roubada com o grau de compactação do time naquele instante, inferindo se o desarme foi fruto de ação individual ou de movimentação coletiva do bloco.
+Mede a **largura normalizada da linha defensiva** — razão entre o espaço lateral coberto pelos 4 defensores e a largura total do campo.
+- Valor em [0, 1]: quanto maior, mais esticada e exposta a linha
+- Cada segmento entre defensores adjacentes é monitorado individualmente: distâncias acima de **8 metros** são destacadas em vermelho, sinalizando um buraco na linha
 
 ---
 
@@ -69,14 +51,14 @@ O sistema segue um pipeline de dados estruturado em três camadas:
       │
       ▼
 ┌─────────────────────┐
-│  Processamento      │  Pandas DataFrames
+│  Processamento      │  Pandas + NumPy
 │  de Dados           │  Entidades: Frame · Bola · Jogador
 └─────────────────────┘
       │
       ▼
 ┌─────────────────────┐
-│  Visualização       │  HTML5 + JavaScript (Canvas)
-│                     │  Simulação 2D estilo "jogo de botão"
+│  Visualização       │  Streamlit + Plotly
+│                     │  Animação nativa frame a frame
 └─────────────────────┘
 ```
 
@@ -84,22 +66,107 @@ O sistema segue um pipeline de dados estruturado em três camadas:
 | Camada | Tecnologia | Função |
 |---|---|---|
 | Ingestão | Python + [Kloppy](https://github.com/PySport/kloppy) | Leitura e normalização dos dados de tracking |
-| Processamento | Pandas | DataFrames e cálculo massivo de métricas |
-| Visualização | HTML5 Canvas + JavaScript | Renderização da simulação 2D e camadas auxiliares |
+| Processamento | Pandas + NumPy | DataFrames e cálculo de métricas geométricas |
+| Interface | Streamlit | Dashboard interativo com controles e camadas |
+| Visualização | Plotly (`go.Frame`) | Animação 2D nativa com slider e play/pause |
 
 ---
 
 ## 🎨 Visualização
 
-A interface 2D é composta por camadas:
+A interface 2D é composta por camadas ativáveis individualmente:
 
-- **Botões (Jogadores):** Círculos identificados por cores e números (ID do jogador)
+- **Botões (Jogadores):** Círculos identificados por cores e números (ID do jogador), com velocidade no hover
 - **Campo:** Retângulo normalizado seguindo as proporções oficiais da FIFA
-- **Esqueleto Tático:** Linhas dinâmicas conectando jogadores do mesmo setor — a distensão indica perda de coesão
-- **Vetores de Deslocamento:** Setas indicando direção e intensidade do movimento no próximo frame
-- **Gráfico de Compactação:** Painel lateral sincronizado mostrando a variação da distância entre as linhas defensiva e ofensiva ao longo do tempo
+- **Esqueleto Tático:** Linhas dinâmicas conectando jogadores — a distensão indica perda de coesão
+- **Shape Graph (Delaunay):** Triangulação sobre os jogadores, revelando conexões táticas instantâneas
+- **Polígono Convexo (Hull):** Área ocupada pelo time em cada frame
+- **Linhas de Formação:** Detecção automática das três linhas táticas (defesa, meio, ataque) com formação inferida (ex: 4-3-3)
+- **Linha Defensiva:** Segmento conectando os defensores ordenados lateralmente — segmentos com distância superior a 8m ficam vermelhos, indicando buracos na linha
+- **Stretch Index:** Índice de largura da linha defensiva exibido em tempo real na legenda, atualizado frame a frame
 
 A visualização simplificada **"limpa" o ruído** das transmissões convencionais, permitindo ao treinador avaliar a geometria do time sem o viés da bola e validar se instruções táticas do treino estão sendo executadas em situações reais de jogo.
 
 ---
 
+## Primeiros Passos
+
+### Requisitos
+
+- Python **3.12.2**
+- Git
+
+---
+
+### 1. Criar o ambiente virtual
+
+```bash
+python3.12 -m venv .venv
+```
+
+> Se tiver múltiplas versões de Python instaladas, confirme a versão com:
+> ```bash
+> python3.12 --version
+> ```
+
+---
+
+### 2. Ativar o ambiente virtual
+
+**Windows:**
+```bash
+source .venv/Scripts/activate
+```
+
+**macOS / Linux:**
+```bash
+source .venv/bin/activate
+```
+
+O terminal deve mostrar `(.venv)` no início da linha.
+
+---
+
+### 3. Instalar as dependências
+
+**Opção A — script de instalação (recomendado):**
+```bash
+./setup/setup.sh
+```
+
+**Opção B — pip direto (caso o script falhe):**
+```bash
+pip install -r requirements.txt
+```
+
+**Opção C — instalação manual (caso o requirements.txt falhe):**
+```bash
+pip install streamlit pandas numpy plotly kloppy
+```
+
+---
+
+### 4. Rodar o app
+
+```bash
+python -m streamlit run src/app.py
+```
+
+---
+
+### Problemas comuns
+
+**`python3.12` não encontrado:**
+Baixe em [python.org/downloads](https://www.python.org/downloads/release/python-3122/) e marque "Add to PATH" na instalação.
+
+**Erro de permissão no setup.sh (macOS/Linux):**
+```bash
+chmod +x setup/setup.sh
+./setup/setup.sh
+```
+
+**Dependências com conflito:**
+```bash
+pip install --upgrade pip
+pip install -r requirements.txt
+```

@@ -59,7 +59,6 @@ def _frame_traces(frame_df, active_layers):
         labels = [r["player_id"].split("_")[-1] for _, r in tdf.iterrows()]
         speeds = tdf["speed"].fillna(0).round(1).tolist() if "speed" in tdf.columns else [0]*len(tdf)
         hover  = [f"#{label} | {speed} m/s" for label, speed in zip(labels, speeds)]
-
         legend_bits = [team.capitalize()]
         if formations.get(team):
             legend_bits.append(f"Form {formations[team]}")
@@ -69,17 +68,17 @@ def _frame_traces(frame_df, active_layers):
                          text=labels, hovertext=hover,
                          name=" | ".join(legend_bits)))
 
-       # linha da defesa
+        # linha da defesa - strech index
         dlx, dly = _defensive_line_data(pts) if active_layers.get("stretch", False) else ([], [])
         stretch_val = stretches.get(team)
         is_critical = stretch_val is not None and stretch_val > DEFENSIVE_LINE_THRESHOLD
 
         if is_critical:
-            data.append(dict(x=[], y=[]))
-            data.append(dict(x=dlx, y=dly))
+            data.append(dict(x=[], y=[]))      # normal vazio
+            data.append(dict(x=dlx, y=dly))   # vermelho com dados
         else:
-            data.append(dict(x=dlx, y=dly))
-            data.append(dict(x=[], y=[]))
+            data.append(dict(x=dlx, y=dly))   # normal com dados
+            data.append(dict(x=[], y=[]))      # vermelho vazio
 
     # bola
     row = frame_df.iloc[0]
@@ -119,12 +118,12 @@ def _base_traces():
             textposition="middle center",
             textfont=dict(color="white", size=9, family="Arial Black"),
             hoverinfo="text", showlegend=True, name=team.capitalize()))
-        # linha da defesa normal
+        # linha defensiva normal
         traces.append(go.Scatter(x=[], y=[], mode="lines",
             line=dict(color=COLORS["skeleton"], width=2),
             opacity=0.5, showlegend=False, hoverinfo="skip",
             name=f"defline_{team}"))
-        # linha defensiva crítica
+        # linha defensiva crítica (vermelha)
         traces.append(go.Scatter(x=[], y=[], mode="lines",
             line=dict(color="#FF3333", width=2),
             opacity=0.8, showlegend=False, hoverinfo="skip",
@@ -159,35 +158,6 @@ def build_animation(df, ids, active_layers, fps=25.0, speed=1.0) -> go.Figure:
         ts = frame_df.iloc[0]["timestamp"]
         data, stretches = _frame_traces(frame_df, active_layers)
 
-        annotations = []
-        if active_layers.get("stretch", False):
-            home_val = stretches.get("home")
-            away_val = stretches.get("away")
-            if home_val is not None:
-                annotations.append(dict(
-                    x=10.0, y=-0.22,
-                    xref="paper", yref="paper",
-                    xanchor="left",
-                    text=f"🏠 Home Stretch: <b>{home_val:.2f}</b>",
-                    showarrow=False,
-                    font=dict(color="white", size=12),
-                    bgcolor="#222222",
-                    bordercolor="#444444",
-                    borderwidth=1,
-                ))
-        if away_val is not None:
-            annotations.append(dict(
-                x=0.0, y=-0.28,
-                xref="paper", yref="paper",
-                xanchor="left",
-                text=f"✈️ Away Stretch: <b>{away_val:.2f}</b>",
-                showarrow=False,
-                font=dict(color="white", size=12),
-                bgcolor="#222222",
-                bordercolor="#444444",
-                borderwidth=1,
-            ))
-
         frames.append(go.Frame(
             data=[go.Scatter(x=d["x"], y=d["y"],
                              text=d.get("text"), hovertext=d.get("hovertext"),
@@ -195,10 +165,7 @@ def build_animation(df, ids, active_layers, fps=25.0, speed=1.0) -> go.Figure:
                              name=d.get("name"))
                   for d in data],
             name=str(i),
-            layout=go.Layout(
-                title_text=f"Frame {fid}  |  {ts:.1f}s",
-                annotations=annotations,
-            ),
+            layout=go.Layout(title_text=f"Frame {fid}  |  {ts:.1f}s"),
         ))
 
         slider_steps.append(dict(
@@ -272,7 +239,7 @@ def build_animation(df, ids, active_layers, fps=25.0, speed=1.0) -> go.Figure:
 # ── Frame único (snapshot) ────────────────────────────────────────────────────
 
 def build_frame_figure(frame_df, active_layers) -> go.Figure:
-    data, _ = _frame_traces(frame_df, active_layers)  # ← desempacota tuple
+    data, _ = _frame_traces(frame_df, active_layers)
     traces = _base_traces()
     for i, d in enumerate(data):
         traces[i].x = d["x"]
