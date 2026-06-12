@@ -9,7 +9,7 @@ import plotly.graph_objects as go
 from src.data_pipe.data_prep import get_frame
 
 from vis.lines_layer import _lines_data
-from vis.stretch_layer import _stretch_index
+from vis.stretch_layer import _stretch_index, _defensive_line_data
 from vis.skeleton_layer import _skeleton_data
 from vis.delaunay_layer import _delaunay_data
 from vis.hull_layer import _hull_data
@@ -17,6 +17,7 @@ from vis.field_layer import field_shapes
 
 from src.config.settings import COLORS, PITCH_LENGTH, PITCH_WIDTH
 import streamlit as st
+
 # ── Camadas de um frame ────────────────────────────────────────────────────────
 @st.cache_data
 def _frame_traces(frame_df, active_layers):
@@ -58,6 +59,7 @@ def _frame_traces(frame_df, active_layers):
         labels = [r["player_id"].split("_")[-1] for _, r in tdf.iterrows()]
         speeds = tdf["speed"].fillna(0).round(1).tolist() if "speed" in tdf.columns else [0]*len(tdf)
         hover  = [f"#{label} | {speed} m/s" for label, speed in zip(labels, speeds)]
+
         legend_bits = [team.capitalize()]
         if formations.get(team):
             legend_bits.append(f"Form {formations[team]}")
@@ -67,13 +69,17 @@ def _frame_traces(frame_df, active_layers):
                          text=labels, hovertext=hover,
                          name=" | ".join(legend_bits)))
 
+        # linha da defesa
+        dlx, dly = _defensive_line_data(pts) if active_layers.get("stretch", False) else ([], [])
+        data.append(dict(x=dlx, y=dly))
+
     # bola
     row = frame_df.iloc[0]
     bx = float(row["ball_x"]) if not np.isnan(row["ball_x"]) else None
     by = float(row["ball_y"]) if not np.isnan(row["ball_y"]) else None
     data.append(dict(x=[bx], y=[by]))
 
-    return data
+    return data, stretches
 
 
 # ── Figura base (traces vazios com estilo fixo) ───────────────────────────────
@@ -99,15 +105,23 @@ def _base_traces():
         traces.append(go.Scatter(x=[], y=[], mode="text",
             textfont=dict(color=COLORS[team], size=16, family="Arial Black"),
             showlegend=False, hoverinfo="skip", name=f"lines_label_{team}"))
+        # jogadores
         traces.append(go.Scatter(x=[], y=[], mode="markers+text",
             marker=dict(size=18, color=COLORS[team], line=dict(color="white", width=1.5)),
             textposition="middle center",
             textfont=dict(color="white", size=9, family="Arial Black"),
             hoverinfo="text", showlegend=True, name=team.capitalize()))
+        # linha da defesa
+        traces.append(go.Scatter(x=[], y=[], mode="lines",
+            line=dict(color=COLORS["skeleton"], width=2),
+            opacity=0.5, showlegend=False, hoverinfo="skip",
+            name=f"defline_{team}"))
+
     traces.append(go.Scatter(x=[], y=[], mode="markers",
         marker=dict(size=14, color=COLORS["ball"],
                     line=dict(color="black", width=1.2)),
         showlegend=False, hoverinfo="skip", name="ball"))
+
     return traces
 
 
@@ -130,7 +144,36 @@ def build_animation(df, ids, active_layers, fps=25.0, speed=1.0) -> go.Figure:
             continue
 
         ts = frame_df.iloc[0]["timestamp"]
-        data = _frame_traces(frame_df, active_layers)
+        data, stretches = _frame_traces(frame_df, active_layers)
+
+        annotations = []
+        if active_layers.get("stretch", False):
+            home_val = stretches.get("home")
+            away_val = stretches.get("away")
+            if home_val is not None:
+                annotations.append(dict(
+                    x=10.0, y=-0.22,
+                    xref="paper", yref="paper",
+                    xanchor="left",
+                    text=f"🏠 Home Stretch: <b>{home_val:.2f}</b>",
+                    showarrow=False,
+                    font=dict(color="white", size=12),
+                    bgcolor="#222222",
+                    bordercolor="#444444",
+                    borderwidth=1,
+                ))
+        if away_val is not None:
+            annotations.append(dict(
+                x=0.0, y=-0.28,
+                xref="paper", yref="paper",
+                xanchor="left",
+                text=f"✈️ Away Stretch: <b>{away_val:.2f}</b>",
+                showarrow=False,
+                font=dict(color="white", size=12),
+                bgcolor="#222222",
+                bordercolor="#444444",
+                borderwidth=1,
+            ))
 
         frames.append(go.Frame(
             data=[go.Scatter(x=d["x"], y=d["y"],
@@ -139,7 +182,10 @@ def build_animation(df, ids, active_layers, fps=25.0, speed=1.0) -> go.Figure:
                              name=d.get("name"))
                   for d in data],
             name=str(i),
-            layout=go.Layout(title_text=f"Frame {fid}  |  {ts:.1f}s"),
+            layout=go.Layout(
+                title_text=f"Frame {fid}  |  {ts:.1f}s",
+                annotations=annotations,
+            ),
         ))
 
         slider_steps.append(dict(
@@ -175,7 +221,7 @@ def build_animation(df, ids, active_layers, fps=25.0, speed=1.0) -> go.Figure:
         yaxis=dict(range=[-3, PITCH_WIDTH+3], showgrid=False,
                    zeroline=False, showticklabels=False,
                    scaleanchor="x", scaleratio=1),
-        margin=dict(l=10, r=10, t=50, b=10),
+        margin=dict(l=10, r=10, t=50, b=80),
         legend=dict(font=dict(color="white"), bgcolor="#222222",
                     bordercolor="#444444", borderwidth=1),
         height=620,
@@ -213,7 +259,7 @@ def build_animation(df, ids, active_layers, fps=25.0, speed=1.0) -> go.Figure:
 # ── Frame único (snapshot) ────────────────────────────────────────────────────
 
 def build_frame_figure(frame_df, active_layers) -> go.Figure:
-    data = _frame_traces(frame_df, active_layers)
+    data, _ = _frame_traces(frame_df, active_layers)  # ← desempacota tuple
     traces = _base_traces()
     for i, d in enumerate(data):
         traces[i].x = d["x"]

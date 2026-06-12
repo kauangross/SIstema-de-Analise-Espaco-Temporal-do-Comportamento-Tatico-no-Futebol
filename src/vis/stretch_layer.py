@@ -40,3 +40,40 @@ def _stretch_index(pts):
 	lateral_span = float(np.max(defenders[:, 1]) - np.min(defenders[:, 1]))
 	stretch = lateral_span / PITCH_WIDTH
 	return float(np.clip(stretch, 0.0, 1.0))
+
+@st.cache_data
+def _defensive_line_data(pts):
+    x_coords, y_coords = [], []
+    if len(pts) < 6:
+        return x_coords, y_coords
+
+    p = np.asarray(pts, dtype=float)
+    x = p[:, 0]
+
+    left_gap = float(np.min(x))
+    right_gap = float(PITCH_LENGTH - np.max(x))
+    defends_left = left_gap <= right_gap
+    depth = x if defends_left else (PITCH_LENGTH - x)
+
+    gk_idx = int(np.argmin(depth))
+    mask = np.ones(len(p), dtype=bool)
+    mask[gk_idx] = False
+    outfield = p[mask]
+    out_depth = depth[mask]
+
+    order = np.argsort(out_depth)
+    sorted_pts = outfield[order]
+    sorted_depth = out_depth[order]
+
+    c1, _, _ = _split_three_lines(sorted_depth)
+    defenders = sorted_pts[:c1]
+
+    if len(defenders) < 2:
+        return x_coords, y_coords
+
+    line = defenders[np.argsort(defenders[:, 1])]
+    for i in range(len(line) - 1):
+        x_coords += [float(line[i, 0]), float(line[i + 1, 0]), None]
+        y_coords += [float(line[i, 1]), float(line[i + 1, 1]), None]
+
+    return x_coords, y_coords
